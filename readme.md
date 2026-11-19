@@ -1,0 +1,1 @@
+for view the videos: http://localhost:5000/galeria

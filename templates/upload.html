@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deja tu Retrato - Hogwarts</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Lora:ital@0;1&display=swap" rel="stylesheet">
+    <style>
+        :root { --gold: #d4af37; --dark-gold: #8b6914; --parchment: #f5e6c6; --castle-dark: #1a1410; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: radial-gradient(ellipse at top, #2a1f15 0%, #0a0604 100%);
+            color: var(--parchment); font-family: 'Lora', serif; min-height: 100vh;
+            display: flex; align-items: center; justify-content: center; padding: 2rem;
+        }
+        .upload-section {
+            max-width: 500px; width: 100%; text-align: center;
+            background: rgba(26, 20, 16, 0.9); border: 2px solid var(--gold);
+            border-radius: 10px; padding: 2.5rem; box-shadow: 0 0 40px rgba(212, 175, 55, 0.2);
+        }
+        h2 { font-family: 'Cinzel', serif; color: var(--gold); margin-bottom: 0.5rem; }
+        .subtitle { margin-bottom: 2rem; font-style: italic; opacity: 0.8; }
+
+        #camera-container {
+            position: relative; width: 100%; aspect-ratio: 3/4; margin: 0 auto 1.5rem;
+            background: #000; border: 2px solid var(--gold); border-radius: 10px; overflow: hidden; display: none;
+        }
+        #camera-preview { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+        #countdown-overlay {
+            position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+            font-family: 'Cinzel', serif; font-size: 6rem; color: var(--gold);
+            text-shadow: 0 0 30px rgba(212, 175, 55, 0.8); pointer-events: none; opacity: 0; transition: opacity 0.3s;
+        }
+        #rec-indicator {
+            position: absolute; top: 15px; left: 15px; display: none; align-items: center; gap: 8px;
+            background: rgba(0,0,0,0.6); padding: 5px 12px; border-radius: 20px; font-weight: bold; color: #ff4444;
+        }
+        .blink { width: 12px; height: 12px; background: #ff4444; border-radius: 50%; animation: blink 1s infinite; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+        #preview-container { width: 100%; margin: 0 auto 1.5rem; display: none; }
+        #recorded-video { width: 100%; border: 2px solid var(--gold); border-radius: 10px; background: #000; }
+
+        .upload-form { display: flex; flex-direction: column; gap: 1rem; }
+        .upload-form input {
+            padding: 12px; background: rgba(245, 230, 198, 0.1); border: 1px solid var(--gold);
+            color: var(--parchment); border-radius: 5px; font-family: 'Lora', serif; font-size: 1rem;
+        }
+        .upload-form input::placeholder { color: rgba(245, 230, 198, 0.5); }
+        .magic-btn {
+            font-family: 'Cinzel', serif; background: linear-gradient(to bottom, #d4af37, #8b6914);
+            color: var(--castle-dark); border: none; padding: 14px 25px; font-size: 1rem; font-weight: bold;
+            border-radius: 30px; cursor: pointer; box-shadow: 0 4px 0 #5a4410, 0 6px 10px rgba(0,0,0,0.3);
+            transition: all 0.1s; text-transform: uppercase; letter-spacing: 1px;
+        }
+        .magic-btn:active { transform: translateY(4px); box-shadow: 0 0 0 #5a4410; }
+        .magic-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .status-msg { margin-top: 1.5rem; font-style: italic; min-height: 1.5em; }
+    </style>
+</head>
+<body>
+    <section class="upload-section">
+        <h2>🎥 Deja tu Retrato Viviente</h2>
+        <p class="subtitle">Graba 5 segundos y aparecerá en la Galería de Hogwarts</p>
+        
+        <div id="camera-container">
+            <video id="camera-preview" autoplay playsinline muted></video>
+            <div id="countdown-overlay"></div>
+            <div id="rec-indicator">
+                <span class="blink"></span>
+                <span id="rec-timer">REC 5s</span>
+            </div>
+        </div>
+
+        <div id="preview-container">
+            <video id="recorded-video" controls playsinline></video>
+        </div>
+
+        <form class="upload-form" id="upload-form">
+            <input type="text" id="portrait-title" placeholder="Título del Retrato (ej: 'Saludos desde la oficina')" required maxlength="50">
+            <input type="text" id="author-name" placeholder="Tu nombre de mago/a (opcional)" maxlength="40">
+            <div id="action-buttons">
+                <button type="button" class="magic-btn" id="start-rec-btn">📹 Activar Cámara</button>
+            </div>
+        </9form>
+        <div class="status-msg" id="status-msg"></div>
+    </section>
+
+    <script>
+        // (El JS es idéntico al anterior, solo adaptado para enviar el 'title')
+        const uploadForm = document.getElementById('upload-form');
+        const statusMsg = document.getElementById('status-msg');
+        const actionButtons = document.getElementById('action-buttons');
+        const cameraContainer = document.getElementById('camera-container');
+        const cameraPreview = document.getElementById('camera-preview');
+        const countdownOverlay = document.getElementById('countdown-overlay');
+        const recIndicator = document.getElementById('rec-indicator');
+        const recTimer = document.getElementById('rec-timer');
+        const previewContainer = document.getElementById('preview-container');
+        const recordedVideo = document.getElementById('recorded-video');
+        const startRecBtn = document.getElementById('start-rec-btn');
+
+        let mediaRecorder = null, recordedChunks = [], stream = null, recordedBlob = null, recordingTimeout = null, countdownInterval = null;
+        const DURACION = 5;
+
+        startRecBtn.addEventListener('click', async () => {
+            try {
+                statusMsg.innerHTML = '🪄 Invocando la cámara...';
+                stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: true });
+                cameraPreview.srcObject = stream;
+                cameraContainer.style.display = 'block';
+                previewContainer.style.display = 'none';
+                statusMsg.innerHTML = '';
+                await countdown(3);
+                startRecording();
+            } catch (err) {
+                statusMsg.innerHTML = '❌ No se pudo acceder a la cámara. Revisa los permisos.';
+            }
+        });
+
+        function countdown(seconds) {
+            return new Promise(resolve => {
+                countdownOverlay.style.opacity = '1';
+                let count = seconds;
+                countdownOverlay.innerText = count;
+                countdownInterval = setInterval(() => {
+                    count--;
+                    if (count > 0) countdownOverlay.innerText = count;
+                    else { clearInterval(countdownInterval); countdownOverlay.style.opacity = '0'; resolve(); }
+                }, 1000);
+            });
+        }
+
+        function startRecording() {
+            recordedChunks = [];
+            let mimeType = 'video/webm;codecs=vp9,opus';
+            if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
+            
+            mediaRecorder = new MediaRecorder(stream, { mimeType });
+            mediaRecorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) recordedChunks.push(e.data); };
+            mediaRecorder.onstop = () => {
+                recordedBlob = new Blob(recordedChunks, { type: mimeType });
+                recordedVideo.src = URL.createObjectURL(recordedBlob);
+                stream.getTracks().forEach(t => t.stop());
+                cameraContainer.style.display = 'none';
+                previewContainer.style.display = 'block';
+                statusMsg.innerHTML = `✨ ¡Video capturado! (${(recordedBlob.size / 1024 / 1024).toFixed(2)} MB)`;
+                actionButtons.innerHTML = `
+                    <button type="button" class="magic-btn" id="retry-btn" style="background: linear-gradient(to bottom, #888, #555); margin-right: 10px;">🔄 Grabar de nuevo</button>
+                    <button type="button" class="magic-btn" id="send-btn">✨ Enviar a Hogwarts ✨</button>
+                `;
+                document.getElementById('retry-btn').addEventListener('click', () => location.reload());
+                document.getElementById('send-btn').addEventListener('click', sendVideo);
+            };
+            mediaRecorder.start();
+            recIndicator.style.display = 'flex';
+            let timeLeft = DURACION;
+            recTimer.innerText = `REC ${timeLeft}s`;
+            recordingTimeout = setInterval(() => {
+                timeLeft--;
+                recTimer.innerText = `REC ${timeLeft}s`;
+                if (timeLeft <= 0) { clearInterval(recordingTimeout); mediaRecorder.stop(); recIndicator.style.display = 'none'; }
+            }, 1000);
+        }
+
+        async function sendVideo() {
+            if (!recordedBlob) return;
+            const sendBtn = document.getElementById('send-btn');
+            sendBtn.disabled = true; sendBtn.innerText = '🪄 Enviando...';
+            
+            const formData = new FormData();
+            formData.append('video', recordedBlob, 'retrato.webm');
+            formData.append('title', document.getElementById('portrait-title').value || 'Retrato Mágico');
+            formData.append('author', document.getElementById('author-name').value || 'Mago Anónimo');
+
+            try {
+                const response = await fetch('/upload', { method: 'POST', body: formData });
+                const data = await response.json();
+                if (data.success) {
+                    statusMsg.innerHTML = '✅ ¡Tu retrato ha cobrado vida!';
+                    actionButtons.innerHTML = '<button type="button" class="magic-btn" onclick="location.reload()">📹 Grabar otro</button>';
+                } else {
+                    statusMsg.innerHTML = '⚠️ ' + (data.error || 'Error');
+                    sendBtn.disabled = false; sendBtn.innerText = '✨ Enviar a Hogwarts ✨';
+                }
+            } catch (error) {
+                statusMsg.innerHTML = '❌ Error de conexión';
+                sendBtn.disabled = false; sendBtn.innerText = '✨ Enviar a Hogwarts ✨';
+            }
+        }
+    </script>
+</body>
+</html>

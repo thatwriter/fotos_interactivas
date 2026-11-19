@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Galería de Retratos - Hogwarts</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Lora:ital@0;1&display=swap" rel="stylesheet">
+    <style>
+        :root { --gold: #d4af37; --dark-gold: #8b6914; --parchment: #f5e6c6; --castle-dark: #1a1410; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: radial-gradient(ellipse at top, #2a1f15 0%, #0a0604 100%);
+            color: var(--parchment);
+            font-family: 'Lora', serif;
+            min-height: 100vh;
+        }
+        header { text-align: center; padding: 2rem 1rem 1rem; }
+        h1 { font-family: 'Cinzel', serif; color: var(--gold); font-size: 2.5rem; text-shadow: 0 0 20px rgba(212, 175, 55, 0.5); }
+        
+        /* ============ LAYOUT DE 2 COLUMNAS ============ */
+        .layout {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 2rem;
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 1rem 2rem 3rem;
+            align-items: start;
+        }
+
+        /* ============ GALERÍA ============ */
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 2rem;
+        }
+
+        @media (max-width: 1400px) { .gallery { grid-template-columns: repeat(4, 1fr); } }
+        @media (max-width: 1100px) { .gallery { grid-template-columns: repeat(3, 1fr); } }
+        @media (max-width: 800px) { 
+            .layout { grid-template-columns: 1fr; }
+            .qr-sidebar { order: -1; position: static !important; }
+            .gallery { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 480px) { .gallery { grid-template-columns: 1fr; } }
+
+        .portrait {
+            position: relative;
+            aspect-ratio: 3/4;
+            animation: appearPortrait 0.8s ease-out backwards;
+        }
+        @keyframes appearPortrait { from { opacity: 0; transform: scale(0.8) rotateY(20deg); } to { opacity: 1; transform: scale(1) rotateY(0); } }
+
+        .frame {
+            position: absolute; inset: 0;
+            background: linear-gradient(135deg, #f4d77a 0%, #b8860b 25%, #8b6914 50%, #b8860b 75%, #f4d77a 100%);
+            padding: 15px; border-radius: 8px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.7), inset 0 0 20px rgba(0,0,0,0.4), 0 0 30px rgba(212, 175, 55, 0.2);
+        }
+        .corner { position: absolute; width: 25px; height: 25px; background: radial-gradient(circle, #f4d77a, #8b6914); border-radius: 50%; box-shadow: inset 0 0 5px rgba(0,0,0,0.5); z-index: 2; }
+        .corner.tl { top: 5px; left: 5px; } .corner.tr { top: 5px; right: 5px; }
+        .corner.bl { bottom: 5px; left: 5px; } .corner.br { bottom: 5px; right: 5px; }
+
+        .portrait-inner { position: relative; width: 100%; height: 100%; background: #000; overflow: hidden; border: 2px solid #3a2a10; box-shadow: inset 0 0 30px rgba(0,0,0,0.9); }
+        .portrait-inner video { width: 100%; height: 100%; object-fit: cover; filter: sepia(0.15) contrast(1.1) brightness(0.95); transition: filter 0.5s; }
+        .portrait:hover .portrait-inner video { filter: sepia(0) contrast(1.15) brightness(1.05); }
+        .portrait:hover .frame { box-shadow: 0 10px 40px rgba(0,0,0,0.7), inset 0 0 20px rgba(0,0,0,0.4), 0 0 50px rgba(212, 175, 55, 0.6); }
+
+        .name-plate {
+            position: absolute; bottom: -35px; left: 50%; transform: translateX(-50%);
+            background: linear-gradient(to bottom, #d4af37, #8b6914); color: var(--castle-dark);
+            padding: 6px 15px; font-family: 'Cinzel', serif; font-size: 0.8rem; font-weight: bold;
+            border-radius: 3px; box-shadow: 0 3px 8px rgba(0,0,0,0.5); white-space: nowrap;
+            max-width: 95%; overflow: hidden; text-overflow: ellipsis; text-align: center;
+        }
+        .empty-state { text-align: center; padding: 4rem; font-style: italic; opacity: 0.6; grid-column: 1 / -1; }
+
+        /* ============ SIDEBAR DEL QR ============ */
+        .qr-sidebar {
+            position: sticky;
+            top: 2rem;
+            background: rgba(26, 20, 16, 0.9);
+            border: 2px solid var(--gold);
+            border-radius: 10px;
+            padding: 1.5rem;
+            text-align: center;
+            box-shadow: 0 0 30px rgba(212, 175, 55, 0.2);
+            display: none; /* Se muestra solo si hay QR */
+        }
+        .qr-sidebar.visible { display: block; }
+        
+        .qr-sidebar h3 {
+            font-family: 'Cinzel', serif;
+            color: var(--gold);
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+        }
+        .qr-sidebar img {
+            width: 100%;
+            max-width: 240px;
+            aspect-ratio: 1;
+            border: 3px solid var(--gold);
+            border-radius: 8px;
+            background: var(--gold);
+            box-shadow: 0 0 20px rgba(212, 175, 55, 0.4);
+        }
+        .qr-sidebar .qr-url {
+            margin-top: 1rem;
+            font-family: monospace;
+            font-size: 0.75rem;
+            color: var(--gold);
+            word-break: break-all;
+            opacity: 0.8;
+        }
+        .qr-sidebar .qr-hint {
+            margin-top: 0.8rem;
+            font-size: 0.85rem;
+            font-style: italic;
+            opacity: 0.7;
+        }
+        .qr-sidebar .qr-status {
+            margin-top: 1rem;
+            padding: 0.5rem;
+            background: rgba(212, 175, 55, 0.1);
+            border-radius: 5px;
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🏰 Galería de Retratos Móviles</h1>
+        <p><em>"Los recuerdos de quienes han pasado por Hogwarts..."</em></p>
+    </header>
+
+    <div class="layout">
+        <!-- COLUMNA IZQUIERDA: GALERÍA -->
+        <section class="gallery" id="gallery">
+            <div class="empty-state" id="empty-state">✨ La galería está vacía. Esperando nuevos retratos... ✨</div>
+        </section>
+
+        <!-- COLUMNA DERECHA: QR DEL TÚNEL -->
+        <aside class="qr-sidebar" id="qr-sidebar">
+            <h3>📱 Escanea para dejar tu retrato</h3>
+            <img id="qr-image" src="" alt="QR del Túnel">
+            <p class="qr-hint">Apunta la cámara de tu celular</p>
+            <p class="qr-url" id="tunnel-url-display"></p>
+            <div class="qr-status" id="qr-status">⏳ Esperando túnel...</div>
+        </aside>
+    </div>
+
+    <script>
+        const gallery = document.getElementById('gallery');
+        const emptyState = document.getElementById('empty-state');
+        const qrSidebar = document.getElementById('qr-sidebar');
+        const qrImage = document.getElementById('qr-image');
+        const urlDisplay = document.getElementById('tunnel-url-display');
+        const qrStatus = document.getElementById('qr-status');
+        
+        let lastVideoCount = -1;
+        let lastQRTimestamp = null;
+
+        function shuffleArray(array) {
+            const shuffled = [...array];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            return shuffled;
+        }
+
+        // ============ CARGAR VIDEOS ============
+        async function loadVideos() {
+            try {
+                const response = await fetch('/videos');
+                const videos = await response.json();
+                
+                if (videos.length === 0) {
+                    if (!document.getElementById('empty-state')) {
+                        gallery.innerHTML = '';
+                        gallery.appendChild(emptyState);
+                    }
+                    lastVideoCount = 0;
+                    return;
+                }
+                if (emptyState.parentNode) emptyState.remove();
+
+                if (videos.length !== lastVideoCount) {
+                    console.log(`🎲 Nuevo video detectado. Total: ${videos.length}. Mezclando...`);
+                    const shuffledVideos = shuffleArray(videos);
+                    gallery.innerHTML = '';
+                    shuffledVideos.forEach((video, index) => addPortrait(video, index));
+                    lastVideoCount = videos.length;
+                }
+            } catch (error) {
+                console.error('Error cargando videos:', error);
+            }
+        }
+
+        function addPortrait(video, index) {
+            const portrait = document.createElement('div');
+            portrait.className = 'portrait';
+            portrait.style.animationDelay = `${index * 0.1}s`;
+            portrait.innerHTML = `
+                <div class="frame">
+                    <div class="corner tl"></div><div class="corner tr"></div>
+                    <div class="corner bl"></div><div class="corner br"></div>
+                    <div class="portrait-inner">
+                        <video src="${video.url}" muted loop autoplay playsinline></video>
+                    </div>
+                </div>
+                <div class="name-plate">${video.title}</div>
+            `;
+            gallery.appendChild(portrait);
+        }
+
+        // ============ ACTUALIZAR QR ============
+        async function updateQR() {
+            try {
+                const response = await fetch('/qr-info');
+                const data = await response.json();
+                
+                if (data.url && data.timestamp) {
+                    // Si el timestamp cambió, actualizar imagen (cache-busting)
+                    if (data.timestamp !== lastQRTimestamp) {
+                        qrImage.src = `/static/tunnel_qr.png?v=${data.timestamp}`;
+                        urlDisplay.innerText = data.url;
+                        lastQRTimestamp = data.timestamp;
+                        console.log('🔄 QR actualizado:', data.url);
+                    }
+                    qrSidebar.classList.add('visible');
+                    qrStatus.innerHTML = '✅ QR activo';
+                    qrStatus.style.color = '#4caf50';
+                } else {
+                    qrStatus.innerHTML = '⏳ Esperando QR...';
+                    qrStatus.style.color = 'var(--gold)';
+                }
+            } catch (error) {
+                qrStatus.innerHTML = '❌ Sin conexión';
+                qrStatus.style.color = '#ff4444';
+            }
+        }
+
+        // ============ INICIO ============
+        loadVideos();
+        updateQR();
+        setInterval(loadVideos, 5000);
+        setInterval(updateQR, 5000);
+    </script>
+</body>
+</html>
